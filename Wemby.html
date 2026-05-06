@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Hoops</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: #0d0d0f;
+    color: #f4f1ea;
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden;
+    /* Disable iOS Safari double-tap zoom and tap highlight */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background:
+      radial-gradient(ellipse at top, #1a1410 0%, #0d0d0f 60%),
+      #0d0d0f;
+  }
+
+  .frame {
+    position: relative;
+    border: 2px solid #f4f1ea;
+    padding: 14px;
+    background: #0d0d0f;
+    box-shadow: 8px 8px 0 #d94a26;
+    /* Cap on big screens, but flex on small ones */
+    width: 100%;
+    max-width: 940px;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    /* Maintain 9:5 aspect ratio (matches 900×500 canvas) */
+    width: 100%;
+    aspect-ratio: 9 / 5;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, #2a1f18 0%, #3d2a1c 55%, #5a3a22 56%, #4a2f1c 100%);
+    border: 1px solid #2a2520;
+    /* No tap highlight or callout on canvas */
+    -webkit-touch-callout: none;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+
+  .title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    letter-spacing: 6px;
+    line-height: 1;
+    color: #f4f1ea;
+  }
+
+  .title span { color: #d94a26; }
+
+  .meta {
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+  }
+
+  .meta-block {
+    text-align: right;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #888;
+    min-width: 60px;
+  }
+
+  .meta-label {
+    margin-bottom: 2px;
+  }
+
+  .meta-block .num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    color: #f4f1ea;
+    letter-spacing: 2px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+
+  .meta-block .num.urgent {
+    color: #d94a26;
+    animation: pulse 0.6s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding: 0 4px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  .footer kbd, .gameover kbd {
+    display: inline-block;
+    background: #f4f1ea;
+    color: #0d0d0f;
+    padding: 2px 8px;
+    margin: 0 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    border: 1px solid #f4f1ea;
+    box-shadow: 2px 2px 0 #d94a26;
+  }
+
+  .flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 120px;
+    letter-spacing: 8px;
+    color: #d94a26;
+    text-shadow: 4px 4px 0 #f4f1ea;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .flash.show {
+    opacity: 1;
+    animation: flashPop 0.8s ease-out;
+  }
+
+  @keyframes flashPop {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  }
+
+  .gameover {
+    position: absolute;
+    inset: 0;
+    background: rgba(13, 13, 15, 0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  .gameover.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .go-eyebrow {
+    font-size: 14px;
+    letter-spacing: 8px;
+    color: #d94a26;
+    margin-bottom: 8px;
+  }
+
+  .go-score {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 180px;
+    line-height: 1;
+    color: #f4f1ea;
+    letter-spacing: 6px;
+    text-shadow: 6px 6px 0 #d94a26;
+  }
+
+  .go-label {
+    font-size: 13px;
+    letter-spacing: 6px;
+    color: #888;
+    text-transform: uppercase;
+    margin-top: 4px;
+    margin-bottom: 36px;
+  }
+
+  .go-btn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 5px;
+    color: #0d0d0f;
+    background: #f4f1ea;
+    border: 2px solid #f4f1ea;
+    padding: 14px 36px;
+    cursor: pointer;
+    box-shadow: 5px 5px 0 #d94a26;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+
+  .go-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0 #d94a26;
+  }
+
+  .go-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 #d94a26;
+  }
+
+  .go-hint {
+    margin-top: 16px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #888;
+    text-transform: uppercase;
+  }
+
+  /* The instruction text shown in footer — different copy for touch vs keyboard */
+  .keyboard-hint { display: inline; }
+  .touch-hint { display: none; }
+
+  /* ======================================================================
+     LANDSCAPE PHONE: viewport short and wide. Reclaim every pixel for the
+     court, shrink chrome, and switch the instruction copy to touch wording.
+     ====================================================================== */
+  @media (max-height: 500px) and (orientation: landscape) {
+    body {
+      padding: 0;
+      /* Use dvh so iOS Safari's collapsing URL bar doesn't cause a resize jump */
+      height: 100dvh;
+    }
+    .frame {
+      width: 100dvw;
+      height: 100dvh;
+      max-width: none;
+      border: none;
+      box-shadow: none;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      margin-bottom: 4px;
+    }
+    .title {
+      font-size: 22px;
+      letter-spacing: 3px;
+    }
+    .meta { gap: 18px; }
+    .meta-block { font-size: 9px; min-width: 0; }
+    .meta-block .num { font-size: 22px; }
+    .canvas-wrap {
+      flex: 1;
+      width: 100%;
+      /* Drop fixed aspect-ratio so canvas fills available space */
+      aspect-ratio: auto;
+      min-height: 0;
+    }
+    .footer {
+      margin-top: 4px;
+      font-size: 9px;
+      letter-spacing: 1px;
+    }
+    .footer kbd { padding: 1px 5px; font-size: 9px; }
+    /* Swap hint copy: hide keyboard wording, show touch wording */
+    .keyboard-hint { display: none; }
+    .touch-hint { display: inline; }
+
+    .flash { font-size: 80px; }
+
+    .go-eyebrow { font-size: 11px; letter-spacing: 5px; }
+    .go-score { font-size: 100px; text-shadow: 4px 4px 0 #d94a26; }
+    .go-label { font-size: 11px; letter-spacing: 4px; margin-bottom: 18px; }
+    .go-btn { font-size: 22px; padding: 10px 26px; letter-spacing: 4px; }
+    .go-hint { display: none; } /* No keyboard on phone */
+  }
+
+  /* Portrait phones: ask the user to rotate. Game is designed for landscape. */
+  @media (max-width: 700px) and (orientation: portrait) {
+    .frame { display: none; }
+    body::before {
+      content: '↻  ROTATE  YOUR  PHONE';
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      letter-spacing: 4px;
+      color: #d94a26;
+      text-align: center;
+      padding: 0 24px;
+      line-height: 1.4;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="header">
+    <div class="title">HOOPS<span>.</span></div>
+    <div class="meta">
+      <div class="meta-block">
+        <div class="meta-label">TIME</div>
+        <div class="num" id="timeDisplay">30</div>
+      </div>
+      <div class="meta-block">
+        <div class="meta-label">SCORE</div>
+        <div class="num" id="scoreDisplay">00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="game" width="900" height="500"></canvas>
+    <div class="flash" id="flash">+2</div>
+
+    <div class="gameover" id="gameover">
+      <div class="go-eyebrow">FINAL</div>
+      <div class="go-score" id="finalScore">00</div>
+      <div class="go-label" id="finalLabel">POINTS</div>
+      <button class="go-btn" id="playAgainBtn">PLAY AGAIN</button>
+      <div class="go-hint">PRESS <kbd>ENTER</kbd></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>
+      <span class="keyboard-hint">HOLD <kbd>SPACE</kbd> TO AIM &nbsp;·&nbsp; RELEASE TO SHOOT</span>
+      <span class="touch-hint">HOLD SCREEN TO AIM &nbsp;·&nbsp; RELEASE TO SHOOT</span>
+    </div>
+    <div id="statusText">DRIBBLING</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Logical (game-coordinate) dimensions. All gameplay code uses these — the canvas
+// backing store is scaled separately to match the device's physical pixels for
+// crisp rendering on high-DPI phones.
+const W = 900;
+const H = 500;
+
+// Resize the canvas's backing store to match its on-screen size × devicePixelRatio,
+// then apply a transform so all draw calls can use the W×H logical coordinate system.
+function fitCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 3); // cap DPR to keep memory sane
+  // Set internal pixel buffer
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  // Map logical W×H -> physical pixel buffer.
+  // We scale by (rect.width / W) * dpr so that drawing at coordinate (W, H) lands
+  // at the bottom-right of the visible canvas.
+  const sx = (rect.width / W) * dpr;
+  const sy = (rect.height / H) * dpr;
+  ctx.setTransform(sx, 0, 0, sy, 0, 0);
+}
+
+window.addEventListener('resize', fitCanvas);
+window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 100));
+// Run once on load — but also after fonts/layout settle
+fitCanvas();
+requestAnimationFrame(fitCanvas);
+
+// Court / ground
+const GROUND_Y = H - 60;
+
+// Hoop
+const HOOP = {
+  x: 800,
+  rimY: 200,
+  rimWidth: 50,        // horizontal width of rim opening
+  backboardX: 850,     // backboard sits at the right end of the rim, so rim is fully on its left
+  backboardTop: 130,
+  backboardBottom: 220,
+};
+
+// Player state
+const player = {
+  x: 250,
+  baseY: GROUND_Y,
+  vx: 0,
+  // Random "drift" toward/away from hoop while dribbling
+  driftTimer: 0,
+  driftDir: 1,
+};
+
+// Defender state — twice as tall as dribbler, lurks between dribbler and hoop
+const defender = {
+  x: 500,
+  baseY: GROUND_Y,
+  vx: 0,
+  driftTimer: 0,
+  driftDir: 1,
+  // Hitbox for the raised hands — top of the defender's reach
+  // Dribbler torso starts at baseY-60, head at baseY-70. So dribbler height ~= 80px.
+  // Defender is 2x tall (160px), and arms reach further above that.
+  bodyHeight: 160,
+};
+
+// Ball state
+const ball = {
+  x: 0, y: 0,
+  vx: 0, vy: 0,
+  radius: 12,
+  inFlight: false,
+  // dribble visualization
+  dribblePhase: 0,
+};
+
+// Game state
+let state = 'dribbling'; // 'dribbling' | 'aiming' | 'flying' | 'cooldown'
+let aimAngle = 0;        // radians from horizontal (toward hoop direction)
+let aimPower = 20.8;     // fixed power; angle is what's variable (30% stronger)
+let charging = false;
+let chargeStart = 0;
+let score = 0;
+let lastTime = performance.now();
+let scoredThisShot = false;
+
+// Round timer
+const ROUND_LENGTH = 30; // seconds
+let timeRemaining = ROUND_LENGTH;
+let gameOver = false;
+let endAfterShot = false; // if timer expires mid-shot, end after it resolves
+
+const GRAVITY = 0.55;
+const MAX_ANGLE = Math.PI / 2.05; // just under 90deg
+
+// --- Input ---
+// Press/release semantics are shared between keyboard (Space) and touch/pointer.
+
+function startAim() {
+  if (gameOver) return;
+  if (state === 'dribbling' && !charging) {
+    charging = true;
+    chargeStart = performance.now();
+    state = 'aiming';
+    document.getElementById('statusText').textContent = 'AIMING';
+  }
+}
+
+function endAim() {
+  if (state === 'aiming' && charging) {
+    releaseShot();
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    startAim();
+  } else if (e.code === 'Enter') {
+    if (gameOver) {
+      e.preventDefault();
+      resetGame();
+    }
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    endAim();
+  }
+});
+
+// Touch / pointer input. Listen on the whole canvas-wrap so touches anywhere on
+// the court count — easier than aiming for a tiny target on a phone.
+// We use pointer events where supported (covers touch + mouse + stylus) and fall
+// back to touch events on older iOS Safari.
+const canvasWrap = document.querySelector('.canvas-wrap');
+
+let activePointerId = null;
+
+if (window.PointerEvent) {
+  canvasWrap.addEventListener('pointerdown', (e) => {
+    // Ignore taps on the game-over overlay's button — let it bubble normally
+    if (e.target.closest('.gameover')) return;
+    if (gameOver) return;
+    e.preventDefault();
+    if (activePointerId !== null) return; // already tracking a touch
+    activePointerId = e.pointerId;
+    canvasWrap.setPointerCapture?.(e.pointerId);
+    startAim();
+  });
+
+  const endPointer = (e) => {
+    if (e.pointerId !== activePointerId) return;
+    activePointerId = null;
+    endAim();
+  };
+  canvasWrap.addEventListener('pointerup', endPointer);
+  canvasWrap.addEventListener('pointercancel', endPointer);
+  canvasWrap.addEventListener('pointerleave', endPointer);
+} else {
+  // Fallback for browsers without Pointer Events
+  canvasWrap.addEventListener('touchstart', (e) => {
+    if (e.target.closest('.gameover')) return;
+    if (gameOver) return;
+    e.preventDefault();
+    startAim();
+  }, { passive: false });
+  canvasWrap.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    endAim();
+  }, { passive: false });
+  canvasWrap.addEventListener('touchcancel', endAim);
+}
+
+// Prevent context menu on long-press (iOS) and accidental selection drags.
+canvasWrap.addEventListener('contextmenu', (e) => e.preventDefault());
+
+function releaseShot() {
+  charging = false;
+  state = 'flying';
+  scoredThisShot = false;
+  document.getElementById('statusText').textContent = 'SHOOTING';
+
+  // Start ball at player's hands
+  const handX = player.x + 10;
+  const handY = player.baseY - 60;
+  ball.x = handX;
+  ball.y = handY;
+  ball.inFlight = true;
+
+  // Direction is toward the hoop (positive x). Angle is measured up from horizontal.
+  // Power scales slightly with angle so very-low and very-high don't both feel useless,
+  // but we keep base power so the player has to find the right angle.
+  const power = aimPower;
+  ball.vx = Math.cos(aimAngle) * power;
+  ball.vy = -Math.sin(aimAngle) * power;
+}
+
+// --- Update loop ---
+function update(dt) {
+  // Round timer countdown
+  if (!gameOver) {
+    timeRemaining -= dt / 1000;
+    if (timeRemaining <= 0) {
+      timeRemaining = 0;
+      // End the round, but let any in-flight shot finish so a buzzer-beater can still count
+      if (state !== 'flying') {
+        endGame();
+      } else {
+        // Mark for end after the shot resolves
+        endAfterShot = true;
+      }
+    }
+    updateTimerDisplay();
+  }
+
+  // Freeze everything once the game is over
+  if (gameOver) return;
+
+  // Player dribbling movement
+  if (state === 'dribbling' || state === 'cooldown') {
+    player.driftTimer -= dt;
+    if (player.driftTimer <= 0) {
+      // Pick a new random drift direction and duration
+      player.driftDir = Math.random() < 0.5 ? -1 : 1;
+      player.vx = player.driftDir * (0.5 + Math.random() * 1.2);
+      player.driftTimer = 400 + Math.random() * 1000;
+    }
+    player.x += player.vx;
+    // Keep player on the left side of the court, away from the hoop
+    if (player.x < 80) { player.x = 80; player.vx = Math.abs(player.vx); }
+    if (player.x > 600) { player.x = 600; player.vx = -Math.abs(player.vx); }
+
+    // Dribble bounce phase
+    ball.dribblePhase += dt * 0.012;
+  }
+
+  // Defender movement — always active so they remain a live obstacle during the shot.
+  // The defender drifts randomly but is constrained to stay between the dribbler and the hoop.
+  defender.driftTimer -= dt;
+  if (defender.driftTimer <= 0) {
+    defender.driftDir = Math.random() < 0.5 ? -1 : 1;
+    defender.vx = defender.driftDir * (0.4 + Math.random() * 1.0);
+    defender.driftTimer = 500 + Math.random() * 1100;
+  }
+  defender.x += defender.vx;
+  // Constrain: must always be between dribbler and hoop, with a buffer on each side
+  const minDefX = player.x + 60;
+  const maxDefX = HOOP.x - 40;
+  if (defender.x < minDefX) { defender.x = minDefX; defender.vx = Math.abs(defender.vx); }
+  if (defender.x > maxDefX) { defender.x = maxDefX; defender.vx = -Math.abs(defender.vx); }
+
+  // Aiming: angle grows while space held
+  if (state === 'aiming' && charging) {
+    const held = (performance.now() - chargeStart) / 1000; // seconds
+    // 1.5 seconds to go from 0 to MAX_ANGLE; clamp at max
+    aimAngle = Math.min(MAX_ANGLE, (held / 1.5) * MAX_ANGLE);
+  }
+
+  // Ball flight
+  if (state === 'flying' && ball.inFlight) {
+    ball.vy += GRAVITY;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Defender hand collision — the raised hands form a horizontal swat zone.
+    // Hands span roughly fingertip-height across the defender's body width.
+    // Defender body height = 160; head top is at baseY - 160. Hands reach ~30 above the head.
+    const defHandY = defender.baseY - defender.bodyHeight - 30; // top of fingertips
+    const defHandBottom = defender.baseY - defender.bodyHeight - 5; // wrists
+    const defHalfW = 24; // arm-span half-width
+    if (ball.x > defender.x - defHalfW && ball.x < defender.x + defHalfW &&
+        ball.y + ball.radius > defHandY && ball.y - ball.radius < defHandBottom) {
+      // Block it: kill forward momentum, knock it back and down
+      ball.vx = -Math.abs(ball.vx) * 0.4 - 1;
+      ball.vy = Math.abs(ball.vy) * 0.3 + 2;
+      // Push ball above the hand top so it doesn't get stuck
+      ball.y = defHandY - ball.radius - 1;
+    }
+
+    // Backboard collision (simple): if moving right and crosses backboard line within its height
+    if (ball.vx > 0 &&
+        ball.x + ball.radius >= HOOP.backboardX &&
+        ball.x - ball.radius <= HOOP.backboardX + 8 &&
+        ball.y >= HOOP.backboardTop && ball.y <= HOOP.backboardBottom) {
+      ball.x = HOOP.backboardX - ball.radius;
+      ball.vx = -ball.vx * 0.5;
+      ball.vy *= 0.7;
+    }
+
+    // Score detection: ball passes downward through the rim plane
+    // Rim opening is between (HOOP.x, HOOP.rimY) and (HOOP.x + HOOP.rimWidth, HOOP.rimY)
+    // Score if previous y < rimY, current y >= rimY, and ball x is between rim posts, and vy > 0
+    if (!scoredThisShot && ball.vy > 0 &&
+        ball.y >= HOOP.rimY && ball.y - ball.vy < HOOP.rimY &&
+        ball.x > HOOP.x + 4 && ball.x < HOOP.x + HOOP.rimWidth - 4) {
+      scoredThisShot = true;
+      score += 2;
+      document.getElementById('scoreDisplay').textContent = String(score).padStart(2, '0');
+      const flash = document.getElementById('flash');
+      flash.classList.remove('show');
+      void flash.offsetWidth;
+      flash.classList.add('show');
+    }
+
+    // Rim collision (left and right rim posts) - bounce off if hits the rim edge
+    const leftRim = { x: HOOP.x, y: HOOP.rimY };
+    const rightRim = { x: HOOP.x + HOOP.rimWidth, y: HOOP.rimY };
+    for (const post of [leftRim, rightRim]) {
+      const dx = ball.x - post.x;
+      const dy = ball.y - post.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < ball.radius + 3) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        // Reflect velocity
+        const dot = ball.vx * nx + ball.vy * ny;
+        ball.vx = (ball.vx - 2 * dot * nx) * 0.6;
+        ball.vy = (ball.vy - 2 * dot * ny) * 0.6;
+        // Push out
+        ball.x = post.x + nx * (ball.radius + 3);
+        ball.y = post.y + ny * (ball.radius + 3);
+      }
+    }
+
+    // Ground / out of bounds
+    if (ball.y + ball.radius >= GROUND_Y) {
+      ball.y = GROUND_Y - ball.radius;
+      ball.vy *= -0.45;
+      ball.vx *= 0.7;
+      // Settle
+      if (Math.abs(ball.vy) < 1.5 && Math.abs(ball.vx) < 0.5) {
+        ball.inFlight = false;
+        state = 'cooldown';
+        document.getElementById('statusText').textContent = 'RESET...';
+        setTimeout(resetToDribble, 600);
+      }
+    }
+    if (ball.x > W + 50 || ball.x < -50) {
+      ball.inFlight = false;
+      state = 'cooldown';
+      document.getElementById('statusText').textContent = 'RESET...';
+      setTimeout(resetToDribble, 400);
+    }
+  }
+}
+
+function resetToDribble() {
+  // If the timer ran out mid-shot, end the game now that the shot is over
+  if (endAfterShot) {
+    endAfterShot = false;
+    endGame();
+    return;
+  }
+  state = 'dribbling';
+  aimAngle = 0;
+  document.getElementById('statusText').textContent = 'DRIBBLING';
+}
+
+// --- Game flow ---
+function updateTimerDisplay() {
+  const t = Math.ceil(timeRemaining);
+  const el = document.getElementById('timeDisplay');
+  el.textContent = String(t).padStart(2, '0');
+  // Pulse red in the final 5 seconds
+  if (t <= 5 && t > 0) {
+    el.classList.add('urgent');
+  } else {
+    el.classList.remove('urgent');
+  }
+}
+
+function endGame() {
+  gameOver = true;
+  state = 'gameover';
+  document.getElementById('statusText').textContent = 'TIME!';
+  document.getElementById('finalScore').textContent = String(score).padStart(2, '0');
+  document.getElementById('finalLabel').textContent = score === 1 ? 'POINT' : 'POINTS';
+  document.getElementById('gameover').classList.add('show');
+  // Make sure any held space is released cleanly
+  charging = false;
+}
+
+function resetGame() {
+  // Reset all per-round state
+  score = 0;
+  timeRemaining = ROUND_LENGTH;
+  gameOver = false;
+  endAfterShot = false;
+  state = 'dribbling';
+  aimAngle = 0;
+  charging = false;
+  scoredThisShot = false;
+  ball.inFlight = false;
+  ball.vx = 0;
+  ball.vy = 0;
+  player.x = 250;
+  player.vx = 0;
+  player.driftTimer = 0;
+  defender.x = 500;
+  defender.vx = 0;
+  defender.driftTimer = 0;
+
+  document.getElementById('scoreDisplay').textContent = '00';
+  document.getElementById('statusText').textContent = 'DRIBBLING';
+  document.getElementById('gameover').classList.remove('show');
+  updateTimerDisplay();
+}
+
+document.getElementById('playAgainBtn').addEventListener('click', resetGame);
+
+// --- Drawing ---
+function drawCourt() {
+  // Floor line
+  ctx.strokeStyle = '#2a1810';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  ctx.lineTo(W, GROUND_Y);
+  ctx.stroke();
+
+  // Court lines on floor (perspective hint)
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 4; i++) {
+    const y = GROUND_Y + i * 12;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+}
+
+function drawHoop() {
+  // Pole
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(HOOP.backboardX + 4, HOOP.backboardBottom, 6, GROUND_Y - HOOP.backboardBottom);
+
+  // Backboard
+  ctx.fillStyle = '#f4f1ea';
+  ctx.fillRect(HOOP.backboardX, HOOP.backboardTop, 8, HOOP.backboardBottom - HOOP.backboardTop);
+  ctx.strokeStyle = '#d94a26';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(HOOP.backboardX + 1, HOOP.backboardTop + 10, 6, 50);
+
+  // Rim
+  ctx.strokeStyle = '#d94a26';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(HOOP.x, HOOP.rimY);
+  ctx.lineTo(HOOP.x + HOOP.rimWidth, HOOP.rimY);
+  ctx.stroke();
+
+  // Rim posts (the circle ends)
+  ctx.fillStyle = '#d94a26';
+  ctx.beginPath();
+  ctx.arc(HOOP.x, HOOP.rimY, 3, 0, Math.PI * 2);
+  ctx.arc(HOOP.x + HOOP.rimWidth, HOOP.rimY, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Net
+  ctx.strokeStyle = 'rgba(244, 241, 234, 0.7)';
+  ctx.lineWidth = 1;
+  const netTop = HOOP.rimY;
+  const netBot = HOOP.rimY + 28;
+  const segs = 6;
+  for (let i = 0; i <= segs; i++) {
+    const tx = HOOP.x + (i / segs) * HOOP.rimWidth;
+    const bx = HOOP.x + 8 + (i / segs) * (HOOP.rimWidth - 16);
+    ctx.beginPath();
+    ctx.moveTo(tx, netTop);
+    ctx.lineTo(bx, netBot);
+    ctx.stroke();
+  }
+  // Net cross-strands
+  for (let i = 0; i < segs; i++) {
+    const tx1 = HOOP.x + (i / segs) * HOOP.rimWidth;
+    const tx2 = HOOP.x + ((i + 1) / segs) * HOOP.rimWidth;
+    const bx1 = HOOP.x + 8 + (i / segs) * (HOOP.rimWidth - 16);
+    const bx2 = HOOP.x + 8 + ((i + 1) / segs) * (HOOP.rimWidth - 16);
+    ctx.beginPath();
+    ctx.moveTo(tx1, netTop + 14);
+    ctx.lineTo(bx2, netBot - 2);
+    ctx.moveTo(tx2, netTop + 14);
+    ctx.lineTo(bx1, netBot - 2);
+    ctx.stroke();
+  }
+}
+
+function drawPlayer() {
+  const px = player.x;
+  const py = player.baseY;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(px, py + 2, 22, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs (jersey orange + dark shorts)
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+
+  let bobOffset = 0;
+  if (state === 'dribbling' || state === 'cooldown') {
+    bobOffset = Math.sin(ball.dribblePhase * 2) * 2;
+  }
+
+  // Left leg
+  ctx.beginPath();
+  ctx.moveTo(px - 6, py - 30);
+  ctx.lineTo(px - 8, py - 2);
+  ctx.stroke();
+  // Right leg
+  ctx.beginPath();
+  ctx.moveTo(px + 6, py - 30);
+  ctx.lineTo(px + 8, py - 2);
+  ctx.stroke();
+
+  // Shorts
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(px - 12, py - 38, 24, 12);
+
+  // Torso (jersey)
+  ctx.fillStyle = '#d94a26';
+  ctx.fillRect(px - 14, py - 60 + bobOffset, 28, 24);
+  // Jersey detail
+  ctx.fillStyle = '#f4f1ea';
+  ctx.fillRect(px - 4, py - 58 + bobOffset, 8, 2);
+
+  // Arms - position depends on state
+  ctx.strokeStyle = '#c9a37a';
+  ctx.lineWidth = 5;
+
+  if (state === 'aiming') {
+    // Both arms up holding ball at angle
+    const armEndX = px + Math.cos(aimAngle) * 28;
+    const armEndY = py - 50 - Math.sin(aimAngle) * 28 + bobOffset;
+    // Back arm
+    ctx.beginPath();
+    ctx.moveTo(px - 8, py - 52 + bobOffset);
+    ctx.lineTo(armEndX - 4, armEndY + 2);
+    ctx.stroke();
+    // Front arm (shooting)
+    ctx.beginPath();
+    ctx.moveTo(px + 8, py - 52 + bobOffset);
+    ctx.lineTo(armEndX, armEndY);
+    ctx.stroke();
+  } else if (state === 'flying') {
+    // Follow-through: arm extended toward direction of shot
+    ctx.beginPath();
+    ctx.moveTo(px + 8, py - 52 + bobOffset);
+    ctx.lineTo(px + 22, py - 65 + bobOffset);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(px - 8, py - 52 + bobOffset);
+    ctx.lineTo(px - 4, py - 38 + bobOffset);
+    ctx.stroke();
+  } else {
+    // Dribbling - one arm down to ball, one at side
+    ctx.beginPath();
+    ctx.moveTo(px - 8, py - 52 + bobOffset);
+    ctx.lineTo(px - 12, py - 38 + bobOffset);
+    ctx.stroke();
+    // Dribble arm
+    const dribbleArmY = py - 40 + Math.sin(ball.dribblePhase) * 6;
+    ctx.beginPath();
+    ctx.moveTo(px + 8, py - 52 + bobOffset);
+    ctx.lineTo(px + 18, dribbleArmY);
+    ctx.stroke();
+  }
+
+  // Head
+  ctx.fillStyle = '#c9a37a';
+  ctx.beginPath();
+  ctx.arc(px, py - 70 + bobOffset, 9, 0, Math.PI * 2);
+  ctx.fill();
+  // Hair
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.arc(px, py - 74 + bobOffset, 9, Math.PI, 0);
+  ctx.fill();
+}
+
+function drawBall(x, y) {
+  // Shadow on ground
+  if (state === 'flying') {
+    const shadowAlpha = Math.max(0.05, 0.3 - (GROUND_Y - y) / 800);
+    ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+    ctx.beginPath();
+    ctx.ellipse(x, GROUND_Y + 2, 12, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Ball body
+  const grad = ctx.createRadialGradient(x - 4, y - 4, 2, x, y, ball.radius);
+  grad.addColorStop(0, '#f08050');
+  grad.addColorStop(1, '#c43818');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, ball.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Seams
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(x, y, ball.radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - ball.radius, y);
+  ctx.lineTo(x + ball.radius, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y - 2, ball.radius, Math.PI * 0.15, Math.PI * 0.85, true);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y + 2, ball.radius, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+}
+
+function drawAimIndicator() {
+  if (state !== 'aiming') return;
+  const handX = player.x + 10;
+  const handY = player.baseY - 60;
+  const len = 70;
+  const tx = handX + Math.cos(aimAngle) * len;
+  const ty = handY - Math.sin(aimAngle) * len;
+
+  // Dotted aim line
+  ctx.strokeStyle = '#d94a26';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.moveTo(handX, handY);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrowhead
+  ctx.fillStyle = '#d94a26';
+  ctx.save();
+  ctx.translate(tx, ty);
+  ctx.rotate(-aimAngle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-8, -4);
+  ctx.lineTo(-8, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Angle readout
+  const deg = Math.round(aimAngle * 180 / Math.PI);
+  ctx.fillStyle = '#f4f1ea';
+  ctx.font = "bold 14px 'JetBrains Mono', monospace";
+  ctx.fillText(deg + '°', tx + 10, ty);
+}
+
+function drawDefender() {
+  const dx = defender.x;
+  const by = defender.baseY;
+  const h = defender.bodyHeight; // 160 — twice the dribbler's ~80
+  // Scale factors: dribbler legs are 30px, torso 24px, head r=9.
+  // We'll roughly scale every dimension by 2x.
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(dx, by + 3, 32, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(dx - 10, by - 60);
+  ctx.lineTo(dx - 14, by - 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(dx + 10, by - 60);
+  ctx.lineTo(dx + 14, by - 2);
+  ctx.stroke();
+
+  // Shorts
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(dx - 22, by - 76, 44, 22);
+
+  // Torso (opposing jersey — navy)
+  const torsoTop = by - h + 40; // top of shoulders
+  const torsoBottom = by - 76;
+  ctx.fillStyle = '#1e3a5f';
+  ctx.fillRect(dx - 26, torsoTop, 52, torsoBottom - torsoTop);
+  // Jersey stripe
+  ctx.fillStyle = '#f4f1ea';
+  ctx.fillRect(dx - 8, torsoTop + 4, 16, 3);
+
+  // Head
+  const headY = by - h + 22;
+  ctx.fillStyle = '#a87a52';
+  ctx.beginPath();
+  ctx.arc(dx, headY, 16, 0, Math.PI * 2);
+  ctx.fill();
+  // Hair
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.arc(dx, headY - 6, 16, Math.PI, 0);
+  ctx.fill();
+
+  // Arms raised straight up — both arms
+  ctx.strokeStyle = '#a87a52';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  // Shoulders
+  const shoulderL = { x: dx - 22, y: torsoTop + 6 };
+  const shoulderR = { x: dx + 22, y: torsoTop + 6 };
+  // Hands top — well above the head
+  const handTopY = by - h - 25;
+  ctx.beginPath();
+  ctx.moveTo(shoulderL.x, shoulderL.y);
+  ctx.lineTo(dx - 18, handTopY + 5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(shoulderR.x, shoulderR.y);
+  ctx.lineTo(dx + 18, handTopY + 5);
+  ctx.stroke();
+
+  // Hands (open palms)
+  ctx.fillStyle = '#a87a52';
+  ctx.beginPath();
+  ctx.arc(dx - 18, handTopY, 8, 0, Math.PI * 2);
+  ctx.arc(dx + 18, handTopY, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Subtle "block zone" highlight when ball is flying nearby — gives the player a read
+  if (state === 'flying') {
+    ctx.fillStyle = 'rgba(217, 74, 38, 0.08)';
+    ctx.fillRect(dx - 24, handTopY - 5, 48, 25);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background gradient is on canvas via CSS, but we add a subtle overlay
+  drawCourt();
+  drawHoop();
+  drawPlayer();
+  drawDefender();
+
+  // Ball position
+  if (state === 'dribbling' || state === 'cooldown') {
+    // Bouncing dribble
+    const bounce = Math.abs(Math.sin(ball.dribblePhase)) * 50;
+    const bx = player.x + 18;
+    const by = player.baseY - 10 - bounce;
+    drawBall(bx, by);
+  } else if (state === 'aiming') {
+    // Held in hands at angle
+    const handX = player.x + 10;
+    const handY = player.baseY - 60;
+    drawBall(handX, handY);
+  } else if (state === 'flying' && ball.inFlight) {
+    drawBall(ball.x, ball.y);
+  }
+
+  drawAimIndicator();
+}
+
+// --- Main loop ---
+function loop(now) {
+  const dt = Math.min(50, now - lastTime);
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
